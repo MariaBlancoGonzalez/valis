@@ -12,8 +12,31 @@ sys.path.append("/Users/gatenbcd/Dropbox/Documents/image_processing/valis_projec
 import os
 import argparse
 
-os.environ.setdefault("CUDA_VISIBLE_DEVICES", "")
-os.environ.setdefault("VALIS_USE_CUDA", "0")
+# Quitar y asegurar que los tensores se copien en CPU
+os.environ.setdefault("CUDA_VISIBLE_DEVICES", "0")
+os.environ.setdefault("VALIS_USE_CUDA", "1")
+
+# Para usar GPU correctamente: parche runtime que hace .cpu() antes de .numpy()
+# Esto evita el TypeError cuando una librería (valis) llama `.numpy()` sobre un
+# tensor que vive en CUDA.
+try:
+    import torch
+    _orig_tensor_numpy = getattr(torch.Tensor, 'numpy', None)
+    if _orig_tensor_numpy is not None:
+        def _tensor_numpy_cpu(self, *args, **kwargs):
+            # Si el tensor está en GPU, se mueve a CPU antes de convertir a numpy
+            try:
+                dev = getattr(self, 'device', None)
+                if dev is not None and getattr(dev, 'type', None) != 'cpu':
+                    return _orig_tensor_numpy(self.cpu(), *args, **kwargs)
+            except Exception:
+                # en caso de cualquier problema, fallback al comportamiento original
+                pass
+            return _orig_tensor_numpy(self, *args, **kwargs)
+        torch.Tensor.numpy = _tensor_numpy_cpu
+except Exception:
+    # Si torch no está disponible, seguimos sin parche
+    pass
 
 import time
 import numpy as np
@@ -88,7 +111,7 @@ for slide_name, slide_obj in registrar.slide_dict.items():
         # level=0 significa usar la resolución completa
         # non_rigid=True aplica las transformaciones no rígidas
         # crop=True recorta la imagen al área común
-        # pyramid=True crea una pirámide de resoluciones (importante para WSI)
+        # pyramid=True crea una pirámide de resoluciones
         # compression="jpeg" o "lzw" son opciones comunes
         slide_obj.warp_and_save_slide(
             dst_f=dst_f,
