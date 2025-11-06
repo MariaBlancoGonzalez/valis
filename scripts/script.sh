@@ -15,7 +15,7 @@ echo "🔍 Buscando carpetas dentro de $BASE_DIR ..."
 for folder in "$BASE_DIR"/*; do
     if [ -d "$folder" ]; then
         echo "🚀 Ejecutando register.py para carpeta: $folder"
-        python3 register.py --slide_src_dir "$folder"
+        python3 scripts/rigid_reg.py --slide_src_dir "$folder"
         echo "===== Finalizado para: $folder ====="
         echo "-------------------------------------------"
     fi
