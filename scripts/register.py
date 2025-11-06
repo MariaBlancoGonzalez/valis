@@ -9,8 +9,17 @@ import sys
 sys.path.append("/Users/gatenbcd/Dropbox/Documents/image_processing/valis_project/valis")
 # Force Valis / PyTorch to use CPU: hide CUDA devices before importing valis or torch.
 # This prevents tensors being created on cuda:0 which then fail when converted to numpy.
+
 import os
+
+import time
+import torch
 import argparse
+
+import numpy as np
+
+from valis import registration
+from valis.micro_rigid_registrar import MicroRigidRegistrar # For high resolution rigid registration
 
 # Quitar y asegurar que los tensores se copien en CPU
 os.environ.setdefault("CUDA_VISIBLE_DEVICES", "0")
@@ -20,7 +29,7 @@ os.environ.setdefault("VALIS_USE_CUDA", "1")
 # Esto evita el TypeError cuando una librería (valis) llama `.numpy()` sobre un
 # tensor que vive en CUDA.
 try:
-    import torch
+    
     _orig_tensor_numpy = getattr(torch.Tensor, 'numpy', None)
     if _orig_tensor_numpy is not None:
         def _tensor_numpy_cpu(self, *args, **kwargs):
@@ -37,11 +46,6 @@ try:
 except Exception:
     # Si torch no está disponible, seguimos sin parche
     pass
-
-import time
-import numpy as np
-from valis import registration
-from valis.micro_rigid_registrar import MicroRigidRegistrar # For high resolution rigid registration
 
 # Leer esto por linea de comandos
 parser = argparse.ArgumentParser(description="Procesar carpetas de slides")
@@ -60,7 +64,7 @@ slide_src_dir = args.slide_src_dir
 if not os.path.isdir(slide_src_dir):
     raise ValueError(f"La ruta {slide_src_dir} no existe o no es un directorio.")
 
-results_dst_dir = "./registered/"
+results_dst_dir = "./register/"
 micro_reg_fraction = 0.25 # Fraction full resolution used for non-rigid registration
 
 # Perform high resolution rigid registration using the MicroRigidRegistrar
@@ -80,14 +84,14 @@ micro_reg, micro_error = registrar.register_micro(max_non_rigid_registration_dim
 
 stop = time.time()
 elapsed = stop - start
-print(f"regisration time is {elapsed/60} minutes")
+print(f"registration time is {elapsed/60} minutes")
 
 # We can also plot the high resolution matches using `Valis.draw_matches`:
 matches_dst_dir = os.path.join(registrar.dst_dir, "hi_rez_matches")
 registrar.draw_matches(matches_dst_dir)
 
 # ============================================================================
-# NUEVO CÓDIGO: Guardar las imágenes registradas en formato OME-TIFF
+# Guardar las imágenes registradas en formato OME-TIFF
 # ============================================================================
 
 # Crear directorio para los archivos OME-TIFF
